@@ -7,7 +7,7 @@ void setupTimer() {
   /*
    * LAB STEP 4
    */
-  // TODO: Configure and enable GCLK4 for TC:
+  // Configure and enable GCLK4 for TC:
   GCLK->GENDIV.reg = GCLK_GENDIV_DIV(0) | GCLK_GENDIV_ID(4); // do not divide gclk 4
   while(GCLK->STATUS.bit.SYNCBUSY);
   // use GCLK->GENCTRL.reg and GCLK->CLKCTRL.reg
@@ -18,7 +18,7 @@ void setupTimer() {
   /*
    * LAB STEP 6
    */
-  // TODO: Disable TC (for now)
+  // Disable TC (for now)
   // use TC3->COUNT16.CTRLA.reg and TC3->COUNT16.INTENCLR.reg
   TC3->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   while(TC3->COUNT16.STATUS.bit.SYNCBUSY);
@@ -29,7 +29,7 @@ void setupTimer() {
   NVIC_SetPriority(TC3_IRQn, 0);
   NVIC_EnableIRQ(TC3_IRQn);
 
-  Serial.println("Timer Initialized!");
+  // Serial.println("Timer Initialized!");
 }
 
 /*
@@ -38,7 +38,7 @@ void setupTimer() {
  */
 void setTimerISRRate(int freq) {
   // Reference TC with TC3->COUNT16.register_name.reg
-  // TODO: Turn off interrupts to TC3 on MC0 when configuring
+  //  Turn off interrupts to TC3 on MC0 when configuring
   TC3->COUNT16.INTENCLR.reg |= TC_INTENCLR_MC0;
   while(TC3->COUNT16.STATUS.bit.SYNCBUSY); // might not need
 
@@ -48,7 +48,7 @@ void setTimerISRRate(int freq) {
   TC3->COUNT16.CC[0].reg = CLOCKFREQ/freq;
   while(TC3->COUNT16.STATUS.bit.SYNCBUSY);
 
-  // TODO: Turn interrupts to TC3 on MC0 back on when done configuring
+  //  Turn interrupts to TC3 on MC0 back on when done configuring
   TC3->COUNT16.INTENSET.reg |= TC_INTENSET_MC0;
 }
 
@@ -56,9 +56,9 @@ void setTimerISRRate(int freq) {
  * Disables TC timer
  */
 void stopTimerInterrupts() {
-  // TODO: Reference TC with TC3->COUNT16.register_name.reg
+  //  Reference TC with TC3->COUNT16.register_name.reg
   TC3->COUNT16.INTENCLR.reg |= TC_INTENCLR_MC0;
   TC3->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   while(TC3->COUNT16.STATUS.bit.SYNCBUSY);
-  Serial.println("Timer interrupts stopped!");
+  // Serial.println("Timer interrupts stopped!");
 }

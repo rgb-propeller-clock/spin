@@ -3,7 +3,6 @@
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
 #include "timer.h"
 
-
 const byte START_BUTTON_PIN = 12;
 const byte STOP_BUTTON_PIN = 11;
 const byte BAT_VOLT_PIN = A1;
@@ -106,9 +105,9 @@ void beamBreakIsr()
     column_counter = 0;
     if (state == RUNNING) {
         if (staged_image_new) {
-            // stopTimerISR(); //TODO:
+            stopTimerInterrupts();
             memcpy(current_image, staged_image, sizeof(CRGB) * image_width * image_height);
-            // setTimerISRRate((int32_t)image_width*1000000/last_rotation_micros); //TODO:
+            setTimerISRRate((int32_t)image_width * 1000000 / last_rotation_micros);
         }
     }
 }
@@ -133,6 +132,3 @@ void startButtonISR()
     fsm_input.stop_button = false;
     state = updateFSM(state, fsm_input);
 }
-
-
-
