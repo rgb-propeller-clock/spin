@@ -2,17 +2,17 @@
 
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
 
-const byte image_height = 8;
-const byte LEDS_DATA_PIN = 8;
-const byte LEDS_CLOCK_PIN = 9;
-CRGB leds[image_height];
-
 const byte START_BUTTON_PIN = 12;
 const byte STOP_BUTTON_PIN = 11;
 const byte BAT_VOLT_PIN = A1;
 const byte MOTOR_CTRL_PIN = 7;
 const byte PIEZO_PIN = 4;
 const byte BEAM_BREAK_PIN = 2;
+const byte LEDS_DATA_PIN = 8;
+const byte LEDS_CLOCK_PIN = 9;
+
+const byte image_height = 8;
+CRGB leds[image_height];
 
 void setup()
 {
