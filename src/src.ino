@@ -1,6 +1,8 @@
 #include <Arduino.h>
 
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
+#include "timer.h"
+
 
 const byte START_BUTTON_PIN = 12;
 const byte STOP_BUTTON_PIN = 11;
@@ -31,3 +33,5 @@ void loop()
     !digitalRead(START_BUTTON_PIN);
     !digitalRead(STOP_BUTTON_PIN);
 }
+
+
