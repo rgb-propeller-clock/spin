@@ -1,6 +1,8 @@
 #include <Arduino.h>
 
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
+#include "timer.h"
+
 
 const byte START_BUTTON_PIN = 12;
 const byte STOP_BUTTON_PIN = 11;
@@ -131,3 +133,6 @@ void startButtonISR()
     fsm_input.stop_button = false;
     state = updateFSM(state, fsm_input);
 }
+
+
+
