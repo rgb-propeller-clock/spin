@@ -1,11 +1,14 @@
 #include <Arduino.h>
 
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
+#include "font.h"
 #include "timer.h"
 
-const unsigned long wait_interval_micros = 5000000;
+const unsigned long wait_interval_micros = 2000000;
 const unsigned long spin_down_time_micros = 1500000;
 unsigned long speed_setpoint_k_rpm = 1000 * 12;
+const unsigned long spinup_timeout = 5000000;
+const unsigned int spinup_divider = 4000;
 
 const byte START_BUTTON_PIN = 1;
 const byte STOP_BUTTON_PIN = 0;
@@ -19,25 +22,14 @@ const byte LEDS_CLOCK_PIN = 9;
 const byte image_height = 8;
 CRGB leds[image_height];
 
-const int image_width = 100;
-CRGB staged_image[image_width][image_height] = {
-    { 0, 0, 0, 0xffaaaa, 0, 0, 0, 0 },
-    { 0, 0, 0xffaaaa, 0, 0, 0, 0, 0 },
-    { 0, 0xffaaaa, 0, 0, 0, 0, 0x0000ff, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0 },
-    { 0xffaaaa, 0, 0, 0, 0, 0, 0, 0 },
-    { 0xffaaaa, 0, 0, 0, 0, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0 },
-    { 0, 0xffaaaa, 0, 0, 0, 0, 0x00ff00, 0 },
-    { 0, 0, 0xffaaaa, 0, 0, 0, 0, 0 },
-    { 0, 0, 0, 0xffaaaa, 0, 0, 0, 0 }
-};
+const int image_width = 125;
+CRGB staged_image[image_width][image_height] = { 0 };
 CRGB current_image[image_width][image_height];
 volatile bool staged_image_new; // we want this to be atomic
 volatile unsigned long last_rotation_micros; // interval
 volatile unsigned long last_beam_break_micros;
 volatile int column_counter;
-volatile unsigned long wait_start_micros;
+volatile unsigned long start_micros; // variable for FSM
 
 enum State {
     s01_MOTOR_OFF = 1,
@@ -98,7 +90,20 @@ void loop()
     fsm_input.stop_button = false;
     state = updateFSM(state, fsm_input);
     interrupts();
-    delay(500);
+
+    static long text_mover = 0;
+    char text[20];
+    sprintf(text, "Hello World!   %d", (int)((millis() / 1000) % 1000));
+    printString(text, text_mover, CHSV(text_mover * 3, 255, 200), CRGB(0, 0, 0), staged_image, image_width);
+    text_mover -= 2;
+
+    for (int i = 0; i < image_width; i++) {
+        staged_image[i][0] = CHSV(map(i, 0, image_width, 0, 255), 255, 100);
+    }
+
+    staged_image_new = true;
+
+    delay(100);
 }
 
 State updateFSM(State state, FsmInput fsm_input)
@@ -106,7 +111,7 @@ State updateFSM(State state, FsmInput fsm_input)
     switch (state) {
     case State::s01_MOTOR_OFF:
         if (fsm_input.start_button) { // transition 1-2
-            wait_start_micros = micros();
+            start_micros = micros();
             tone(PIEZO_PIN, 880);
             state = State::s02_WAIT;
         }
@@ -116,16 +121,16 @@ State updateFSM(State state, FsmInput fsm_input)
         if (fsm_input.stop_button) { // transition 2-1
             noTone(PIEZO_PIN);
             state = State::s01_MOTOR_OFF;
-        } else if (fsm_input.micros - wait_start_micros > wait_interval_micros) { // transition 2-3
-            analogWrite(MOTOR_CTRL_PIN, 255);
+        } else if (fsm_input.micros - start_micros > wait_interval_micros) { // transition 2-3
             tone(PIEZO_PIN, 1320);
             last_rotation_micros = 0;
+            start_micros = fsm_input.micros;
             state = State::s03_SPINNING_UP;
         }
         return state;
         break;
     case State::s03_SPINNING_UP:
-        if (fsm_input.stop_button) { // transition 3-5
+        if (fsm_input.stop_button) { // transition 3-5a stop pressed
             analogWrite(MOTOR_CTRL_PIN, 0);
             tone(PIEZO_PIN, 1000);
             state = State::s05_SPINNING_DOWN;
@@ -134,7 +139,12 @@ State updateFSM(State state, FsmInput fsm_input)
             noTone(PIEZO_PIN);
             state = State::s04_RUNNING;
 
-            staged_image_new = true; // TODO: delete when better image creation code written
+        } else if (fsm_input.micros - start_micros > spinup_timeout) { // transition 3-5b timeout
+            analogWrite(MOTOR_CTRL_PIN, 0);
+            tone(PIEZO_PIN, 1000);
+            state = State::s05_SPINNING_DOWN;
+        } else {
+            analogWrite(MOTOR_CTRL_PIN, constrain((fsm_input.micros - start_micros) / spinup_divider, 0, 255));
         }
         return state;
         break;
@@ -147,7 +157,7 @@ State updateFSM(State state, FsmInput fsm_input)
             state = State::s05_SPINNING_DOWN;
         } else { // 4-4 self loop
             // TODO: speed control loop
-            analogWrite(MOTOR_CTRL_PIN, 200);
+            analogWrite(MOTOR_CTRL_PIN, 220);
         }
         return state;
         break;

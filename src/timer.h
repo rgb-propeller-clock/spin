@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 // Timer code -------------------------------- //
-const int CLOCKFREQ = 1000000;
+const int CLOCKFREQ = 1000000; // clock divider of 4
 
 void setupTimer()
 {
