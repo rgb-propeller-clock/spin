@@ -3,6 +3,7 @@
         "INTFLAG",
         "PIEZO",
         "setpoint",
-        "spinup"
+        "spinup",
+        "ssid"
     ]
 }

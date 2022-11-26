@@ -1,7 +1,10 @@
+#ifndef TIMER_H
+#define TIMER_H
+
 #include <Arduino.h>
 
 // Timer code -------------------------------- //
-const int CLOCKFREQ = 1000000; // clock divider of 4
+const int CLOCKFREQ = 1000000; // unlike the lab, here we use a clock divider of 4 to allow for slower speeds
 
 void setupTimer()
 {
@@ -69,3 +72,4 @@ void stopTimerInterrupts()
         ;
     // Serial.println("Timer interrupts stopped!");
 }
+#endif

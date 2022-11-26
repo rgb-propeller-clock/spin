@@ -2,13 +2,24 @@
 
 #include "FastLED.h" //https://github.com/FastLED/FastLED/
 #include "font.h"
+#include "pid.h"
+#include "secret.h"
 #include "timer.h"
+#include <SPI.h>
+#include <WiFi101.h>
+
+PID motorPid;
+
+// char debugText[200];
 
 const unsigned long wait_interval_micros = 2000000;
 const unsigned long spin_down_time_micros = 1500000;
-unsigned long speed_setpoint_k_rpm = 1000 * 12;
 const unsigned long spinup_timeout = 5000000;
-const unsigned int spinup_divider = 4000;
+const unsigned int spinup_divider = 2000;
+
+const uint8_t speed_unit_devisor_power = 12;
+const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
+int32_t speed_setpoint = speed_unit_devisor * 12 / 1; // the second two numbers represent a fractional Rotations Per Second value
 
 const byte START_BUTTON_PIN = 1;
 const byte STOP_BUTTON_PIN = 0;
@@ -22,7 +33,7 @@ const byte LEDS_CLOCK_PIN = 9;
 const byte image_height = 8;
 CRGB leds[image_height];
 
-const int image_width = 125;
+const int image_width = 125; // do not set to above 2100 (causes overflow in calculation of isrRate)
 CRGB staged_image[image_width][image_height] = { 0 };
 CRGB current_image[image_width][image_height];
 volatile bool staged_image_new; // we want this to be atomic
@@ -30,6 +41,10 @@ volatile unsigned long last_rotation_micros; // interval
 volatile unsigned long last_beam_break_micros;
 volatile int column_counter;
 volatile unsigned long start_micros; // variable for FSM
+
+int status = WL_IDLE_STATUS; // the WiFi radio's status
+WiFiServer server(23);
+WiFiClient client;
 
 enum State {
     s01_MOTOR_OFF = 1,
@@ -62,6 +77,8 @@ void setup()
 
     FastLED.addLeds<APA102, LEDS_DATA_PIN, LEDS_CLOCK_PIN, BGR>(leds, image_height); // https://learn.sparkfun.com/tutorials/lumenati-hookup-guide#example-using-a-samd21-mini-breakout
 
+    motorPid = PID(0, 18, 100, 10, 0, 0, 255, speed_unit_devisor_power);
+
     staged_image_new = false;
     last_rotation_micros = 0;
     column_counter = 0;
@@ -72,6 +89,20 @@ void setup()
     fsm_input.rotation_interval = 0;
     fsm_input.start_button = false;
     fsm_input.stop_button = false;
+
+    // Serial.begin(115200);
+    // delay(5000);
+    // Serial.print("Attempting to connect to: ");
+    // Serial.println(wifi_ssid);
+    // WiFi.hostname("spin-clock");
+    // status = WiFi.begin(wifi_ssid, wifi_pass); // wifi
+    // while (status != WL_CONNECTED) {
+    //     delay(1000);
+    // }
+    // IPAddress ip = WiFi.localIP();
+    // Serial.print("IP Address: ");
+    // Serial.println(ip);
+    // server.begin();
 
     setupTimer();
 
@@ -103,6 +134,12 @@ void loop()
 
     staged_image_new = true;
 
+    // client = server.available();
+    // if (client) {
+    //     client.flush();
+    //     client.println(debugText);
+    // }
+
     delay(100);
 }
 
@@ -126,6 +163,8 @@ State updateFSM(State state, FsmInput fsm_input)
             last_rotation_micros = 0;
             start_micros = fsm_input.micros;
             state = State::s03_SPINNING_UP;
+        } else { // 2-2 self loop
+            dangerBlink();
         }
         return state;
         break;
@@ -134,17 +173,19 @@ State updateFSM(State state, FsmInput fsm_input)
             analogWrite(MOTOR_CTRL_PIN, 0);
             tone(PIEZO_PIN, 1000);
             state = State::s05_SPINNING_DOWN;
-        } else if (fsm_input.rotation_interval != 0 && fsm_input.rotation_interval <= 1000000 * 1000 / speed_setpoint_k_rpm) { // transition 3-4
+        } else if (fsm_input.rotation_interval != 0 && fsm_input.rotation_interval <= (int64_t)1000000 * speed_unit_devisor / speed_setpoint) { // transition 3-4
             // fast enough
             noTone(PIEZO_PIN);
             state = State::s04_RUNNING;
+            motorPid.initialize_time(fsm_input.micros);
 
         } else if (fsm_input.micros - start_micros > spinup_timeout) { // transition 3-5b timeout
             analogWrite(MOTOR_CTRL_PIN, 0);
             tone(PIEZO_PIN, 1000);
             state = State::s05_SPINNING_DOWN;
-        } else {
-            analogWrite(MOTOR_CTRL_PIN, constrain((fsm_input.micros - start_micros) / spinup_divider, 0, 255));
+        } else { // self loop
+            dangerBlink();
+            analogWrite(MOTOR_CTRL_PIN, constrain((fsm_input.micros - start_micros) / spinup_divider, 0, 255)); // ramp to full power
         }
         return state;
         break;
@@ -156,15 +197,19 @@ State updateFSM(State state, FsmInput fsm_input)
             FastLED.clear(true);
             state = State::s05_SPINNING_DOWN;
         } else { // 4-4 self loop
-            // TODO: speed control loop
-            analogWrite(MOTOR_CTRL_PIN, 220);
+            int32_t speed = (int64_t)1000000 * speed_unit_devisor / fsm_input.rotation_interval;
+            int32_t motor_control = motorPid.calculate(speed_setpoint, speed, fsm_input.micros);
+            analogWrite(MOTOR_CTRL_PIN, motor_control);
         }
         return state;
         break;
     case State::s05_SPINNING_DOWN:
         if (fsm_input.micros - fsm_input.last_beam_break > spin_down_time_micros) {
             noTone(PIEZO_PIN);
+            FastLED.clear(true);
             state = State::s01_MOTOR_OFF;
+        } else {
+            dangerBlink();
         }
         return state;
         break;
@@ -194,12 +239,18 @@ void beamBreakIsr()
             memcpy(current_image, staged_image, sizeof(CRGB) * image_width * image_height);
             staged_image_new = false;
         }
-        setTimerISRRate((int32_t)image_width * 1000000 / last_rotation_micros); // TODO: ENSURE NOT OUT OF RANGE OR DIV/0 (minimum frequency is 30Hz)
+        if (last_beam_break_micros == 0) { // shouldn't happen, but protects from div/0
+            stopTimerInterrupts();
+            return;
+        }
+        int32_t isrRate = (int32_t)image_width * 1000000 / last_rotation_micros;
+        isrRate = max(30, isrRate); // minimum frequency that setTimerISRRate supports is 30Hz
+        setTimerISRRate(isrRate);
     }
 }
 
-void TC3_Handler()
-{ // timerISR
+void TC3_Handler() // timerISR
+{
     int temp_column_counter = constrain(column_counter, 0, image_width - 1);
     for (int i = 0; i < image_height; i++) {
         leds[i] = current_image[temp_column_counter][i];
@@ -230,4 +281,14 @@ void startButtonIsr()
 
     fsm_input.start_button = true;
     state = updateFSM(state, fsm_input);
+}
+
+void dangerBlink()
+{
+    static bool blinkVar = false;
+    blinkVar = !blinkVar;
+    for (int i = 0; i < image_height; i++) {
+        leds[i] = (blinkVar) ? CRGB(255, 100, 0) : CRGB(0, 0, 0);
+    }
+    FastLED.show();
 }
