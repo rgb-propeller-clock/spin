@@ -153,7 +153,7 @@ void loop()
     char text[20];
     if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
         clearDisplay();
-    } else { // show text
+    } else if (most_recent_ir_angle != -1) { // show text
         clearDisplay();
         sprintf(text, "%d", (int)((millis() / 1000) % 1000));
         printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
