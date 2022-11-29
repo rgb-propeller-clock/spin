@@ -17,6 +17,7 @@ const unsigned long wait_interval_micros = 2000000;
 const unsigned long spin_down_time_micros = 1500000;
 const unsigned long spinup_timeout = 5000000;
 const unsigned int spinup_divider = 2000;
+const float bat_voltage_scaler = 0.01;
 
 const uint8_t speed_unit_devisor_power = 12;
 const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
@@ -127,7 +128,7 @@ void setup()
 
 void loop()
 {
-    float bat_voltage = analogRead(BAT_VOLT_PIN) * 0.01;
+    float bat_voltage = analogRead(BAT_VOLT_PIN) * bat_voltage_scaler;
     noInterrupts();
     fsm_input.last_beam_break = last_beam_break_micros;
     fsm_input.micros = micros();
