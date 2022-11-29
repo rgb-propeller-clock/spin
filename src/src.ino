@@ -18,6 +18,7 @@ const unsigned long spin_down_time_micros = 1500000;
 const unsigned long spinup_timeout = 5000000;
 const unsigned int spinup_divider = 2000;
 const float bat_voltage_scaler = 0.01;
+const float bat_voltage_low_thresh = 6.5;
 
 const uint8_t speed_unit_devisor_power = 12;
 const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
@@ -72,6 +73,7 @@ struct FsmInput {
     volatile bool stop_button;
     volatile unsigned long rotation_interval;
     volatile unsigned long last_beam_break;
+    volatile float bat_volt;
 };
 FsmInput fsm_input;
 
@@ -100,6 +102,7 @@ void setup()
     fsm_input.rotation_interval = 0;
     fsm_input.start_button = false;
     fsm_input.stop_button = false;
+    fsm_input.bat_volt = 0;
 
     Serial.begin(115200);
 
@@ -130,6 +133,7 @@ void loop()
 {
     float bat_voltage = analogRead(BAT_VOLT_PIN) * bat_voltage_scaler;
     noInterrupts();
+    fsm_input.bat_volt = bat_voltage;
     fsm_input.last_beam_break = last_beam_break_micros;
     fsm_input.micros = micros();
     fsm_input.rotation_interval = last_rotation_micros;
