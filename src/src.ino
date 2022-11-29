@@ -1,16 +1,17 @@
 #include <Arduino.h>
 
-#include "FastLED.h" //https://github.com/FastLED/FastLED/
+// #define DEBUG // uncomment to turn on code that connects to wifi and prints info for debugging
+
 #include "font.h"
 #include "pid.h"
 #include "secret.h"
 #include "timer.h"
+#include <CircularBuffer.h> // https://github.com/rlogiacco/CircularBuffer
+#include <FastLED.h> //https://github.com/FastLED/FastLED/
 #include <SPI.h>
 #include <WiFi101.h>
 
 PID motorPid;
-
-// char debugText[200];
 
 const unsigned long wait_interval_micros = 2000000;
 const unsigned long spin_down_time_micros = 1500000;
@@ -19,7 +20,7 @@ const unsigned int spinup_divider = 2000;
 
 const uint8_t speed_unit_devisor_power = 12;
 const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
-int32_t speed_setpoint = speed_unit_devisor * 12 / 1; // the second two numbers represent a fractional Rotations Per Second value
+int32_t speed_setpoint = speed_unit_devisor * 10 / 1; // the second two numbers represent a fractional Rotations Per Second value
 
 const byte START_BUTTON_PIN = 1;
 const byte STOP_BUTTON_PIN = 0;
@@ -29,6 +30,7 @@ const byte PIEZO_PIN = 4;
 const byte BEAM_BREAK_PIN = A2;
 const byte LEDS_DATA_PIN = 8;
 const byte LEDS_CLOCK_PIN = 9;
+const byte IR_PIN = 5;
 
 const byte image_height = 8;
 CRGB leds[image_height];
@@ -42,9 +44,17 @@ volatile unsigned long last_beam_break_micros;
 volatile int column_counter;
 volatile unsigned long start_micros; // variable for FSM
 
+volatile unsigned long last_ir_micros;
+volatile boolean ir_buf_lock = false;
+CircularBuffer<int, 50> ir_buf;
+int most_recent_ir_angle = -1;
+
+#ifdef DEBUG
+char debugText[200];
 int status = WL_IDLE_STATUS; // the WiFi radio's status
 WiFiServer server(23);
 WiFiClient client;
+#endif
 
 enum State {
     s01_MOTOR_OFF = 1,
@@ -77,7 +87,7 @@ void setup()
 
     FastLED.addLeds<APA102, LEDS_DATA_PIN, LEDS_CLOCK_PIN, BGR>(leds, image_height); // https://learn.sparkfun.com/tutorials/lumenati-hookup-guide#example-using-a-samd21-mini-breakout
 
-    motorPid = PID(0, 18, 100, 10, 0, 0, 255, speed_unit_devisor_power);
+    motorPid = PID(0, 18, 100, 20, 0, 0, 255, speed_unit_devisor_power);
 
     staged_image_new = false;
     last_rotation_micros = 0;
@@ -90,19 +100,21 @@ void setup()
     fsm_input.start_button = false;
     fsm_input.stop_button = false;
 
-    // Serial.begin(115200);
-    // delay(5000);
-    // Serial.print("Attempting to connect to: ");
-    // Serial.println(wifi_ssid);
-    // WiFi.hostname("spin-clock");
-    // status = WiFi.begin(wifi_ssid, wifi_pass); // wifi
-    // while (status != WL_CONNECTED) {
-    //     delay(1000);
-    // }
-    // IPAddress ip = WiFi.localIP();
-    // Serial.print("IP Address: ");
-    // Serial.println(ip);
-    // server.begin();
+#ifdef DEBUG
+    Serial.begin(115200);
+    delay(2000);
+    Serial.print("Attempting to connect to: ");
+    Serial.println(wifi_ssid);
+    WiFi.hostname("spin-clock");
+    status = WiFi.begin(wifi_ssid, wifi_pass); // wifi
+    while (status != WL_CONNECTED) {
+        delay(1000);
+    }
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP Address: ");
+    Serial.println(ip);
+    server.begin();
+#endif
 
     setupTimer();
 
@@ -125,20 +137,26 @@ void loop()
     static long text_mover = 0;
     char text[20];
     sprintf(text, "Hello World!   %d", (int)((millis() / 1000) % 1000));
-    printString(text, text_mover, CHSV(text_mover * 3, 255, 200), CRGB(0, 0, 0), staged_image, image_width);
+    printString(text, text_mover, CHSV(text_mover * 3, 255, 45), CRGB(0, 0, 0), staged_image, image_width);
     text_mover -= 2;
 
-    for (int i = 0; i < image_width; i++) {
-        staged_image[i][0] = CHSV(map(i, 0, image_width, 0, 255), 255, 100);
+    int irAngle = getIRAngle();
+    if (irAngle != -1) {
+        most_recent_ir_angle = irAngle;
+    }
+    if (most_recent_ir_angle != -1) {
+        staged_image[most_recent_ir_angle][0] = CRGB(200, 200, 200);
     }
 
     staged_image_new = true;
 
-    // client = server.available();
-    // if (client) {
-    //     client.flush();
-    //     client.println(debugText);
-    // }
+#ifdef DEBUG
+    client = server.available();
+    if (client) {
+        client.flush();
+        client.println(debugText);
+    }
+#endif
 
     delay(100);
 }
@@ -150,7 +168,10 @@ State updateFSM(State state, FsmInput fsm_input)
         if (fsm_input.start_button) { // transition 1-2
             start_micros = micros();
             tone(PIEZO_PIN, 880);
+            digitalWrite(LED_BUILTIN, LOW);
             state = State::s02_WAIT;
+        } else { // 1-1 self loop
+            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // blink the built in green led so I don't forget that the clock is on.
         }
         return state;
         break;
@@ -252,6 +273,12 @@ void beamBreakIsr()
 void TC3_Handler() // timerISR
 {
     int temp_column_counter = constrain(column_counter, 0, image_width - 1);
+    if (digitalRead(IR_PIN) == LOW) {
+        if (ir_buf_lock == false) { // unlocked
+            last_ir_micros = micros();
+            ir_buf.push(temp_column_counter); // IR currently detected, save current angle to buffer
+        }
+    }
     for (int i = 0; i < image_height; i++) {
         leds[i] = current_image[temp_column_counter][i];
     }
@@ -281,6 +308,35 @@ void startButtonIsr()
 
     fsm_input.start_button = true;
     state = updateFSM(state, fsm_input);
+}
+
+/**
+ * @brief
+ * @note
+ * @retval Which column of the image is in the direction that the IR signal is coming from. Or -1 if no new reading is available.
+ */
+int getIRAngle()
+{
+    ir_buf_lock = true;
+    int angle = -1;
+    if (micros() - last_ir_micros > 400000) { // wait until data has stopped coming in
+        if (ir_buf.size() >= 10) { // enough readings
+            // https://en.wikipedia.org/wiki/Circular_mean (make a vector for each point, then add them, then use atan2)
+            long x = 0;
+            long y = 0;
+            for (int i = 0; i < ir_buf.size(); i++) {
+                x += cos16((1 << 16) / image_width * ir_buf[i]); // https://fastled.io/docs/3.1/group___trig.html#ga056952ebed39f55880bb353857b47075
+                y += sin16((1 << 16) / image_width * ir_buf[i]); // https://fastled.io/docs/3.1/group___trig.html#ga0890962cb06b267617f4b06d7e9be5eb
+            }
+            if (x != 0 && y != 0) {
+                angle = (atan2(-y, -x) + PI) * image_width / TWO_PI;
+                angle = constrain(angle, 0, image_width - 1);
+            }
+        }
+        ir_buf.clear();
+    }
+    ir_buf_lock = false;
+    return angle;
 }
 
 void dangerBlink()
