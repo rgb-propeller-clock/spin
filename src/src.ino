@@ -100,6 +100,8 @@ void setup()
     fsm_input.start_button = false;
     fsm_input.stop_button = false;
 
+    Serial.begin(115200);
+
 #ifdef DEBUG
     Serial.begin(115200);
     delay(2000);
@@ -125,6 +127,7 @@ void setup()
 
 void loop()
 {
+    float bat_voltage = analogRead(BAT_VOLT_PIN) * 0.01;
     noInterrupts();
     fsm_input.last_beam_break = last_beam_break_micros;
     fsm_input.micros = micros();
