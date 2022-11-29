@@ -48,8 +48,9 @@ volatile unsigned long start_micros; // variable for FSM
 
 volatile unsigned long last_ir_micros;
 volatile boolean ir_buf_lock = false;
-CircularBuffer<int, 50> ir_buf;
 int most_recent_ir_angle = -1;
+
+CircularBuffer<int, 50> ir_buf;
 
 #ifdef DEBUG
 char debugText[200];
@@ -122,6 +123,8 @@ void setup()
     server.begin();
 #endif
 
+    clearDisplay();
+
     setupTimer();
 
     attachInterrupt(BEAM_BREAK_PIN, beamBreakIsr, FALLING);
@@ -142,18 +145,18 @@ void loop()
     state = updateFSM(state, fsm_input);
     interrupts();
 
-    static long text_mover = 0;
-    char text[20];
-    sprintf(text, "Hello World!   %d", (int)((millis() / 1000) % 1000));
-    printString(text, text_mover, CHSV(text_mover * 3, 255, 45), CRGB(0, 0, 0), staged_image, image_width);
-    text_mover -= 2;
-
     int irAngle = getIRAngle();
     if (irAngle != -1) {
         most_recent_ir_angle = irAngle;
     }
-    if (most_recent_ir_angle != -1) {
-        staged_image[most_recent_ir_angle][0] = CRGB(200, 200, 200);
+
+    char text[20];
+    if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
+        clearDisplay();
+    } else { // show text
+        clearDisplay();
+        sprintf(text, "%d", (int)((millis() / 1000) % 1000));
+        printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
     }
 
     staged_image_new = true;
@@ -206,6 +209,8 @@ State updateFSM(State state, FsmInput fsm_input)
             // fast enough
             noTone(PIEZO_PIN);
             state = State::s04_RUNNING;
+            ir_buf.clear();
+            most_recent_ir_angle = -1;
             motorPid.initialize_time(fsm_input.micros);
 
         } else if (fsm_input.micros - start_micros > spinup_timeout) { // transition 3-5b timeout
@@ -355,4 +360,13 @@ void dangerBlink()
         leds[i] = (blinkVar) ? CRGB(255, 100, 0) : CRGB(0, 0, 0);
     }
     FastLED.show();
+}
+
+void clearDisplay()
+{
+    for (int x = 0; x < image_width; x++) {
+        for (int y = 0; y < image_height; y++) {
+            staged_image[x][y] = CRGB(0, 0, 0);
+        }
+    }
 }

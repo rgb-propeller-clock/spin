@@ -13,7 +13,7 @@ pulseout = pulseio.PulseOut(board.IR_TX, frequency=38000, duty_cycle=2 ** 7) # d
 while True:
     if cpx.button_b:
         cpx.red_led = True
-        for i in range(100):
+        for i in range(200):
             pulseout.send(array.array("H", [1000, 1500]))
         cpx.red_led = False
         time.sleep(0.5)
