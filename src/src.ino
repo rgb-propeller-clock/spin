@@ -158,6 +158,9 @@ void loop()
         clearDisplay();
         sprintf(text, "%d", (int)((millis() / 1000) % 1000));
         printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+        // if (most_recent_ir_angle > 100) {
+        //     delay(300);
+        // }
     }
 
     staged_image_new = true;
