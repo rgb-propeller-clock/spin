@@ -4,12 +4,11 @@
 
 #include "font.h"
 #include "pid.h"
-#include "secret.h"
 #include "timer.h"
+#include "watchdog.h"
 #include <CircularBuffer.h> // https://github.com/rlogiacco/CircularBuffer
 #include <FastLED.h> //https://github.com/FastLED/FastLED/
 #include <SPI.h>
-#include <WiFi101.h>
 
 PID motorPid;
 
@@ -126,6 +125,7 @@ void setup()
     clearDisplay();
 
     setupTimer();
+    setupWatchdog();
 
     attachInterrupt(BEAM_BREAK_PIN, beamBreakIsr, FALLING);
     attachInterrupt(START_BUTTON_PIN, startButtonIsr, FALLING); // buttons pull pins low when pressed
@@ -169,7 +169,7 @@ void loop()
         client.println(debugText);
     }
 #endif
-
+    petWatchdog();
     delay(100);
 }
 
