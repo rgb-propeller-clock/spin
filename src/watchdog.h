@@ -1,3 +1,6 @@
+#ifndef WATCHDOG_H
+#define WATCHDOG_H
+#include <Arduino.h>
 void setupWatchdog() {
     // Set up NVIC: [SECTION 1]
     NVIC_SetPriority(TC3_IRQn, 0);
@@ -48,3 +51,4 @@ void WDT_Handler() {
   Serial.println("ERROR: Did not pet watchdog!");
   // ASK: Do we want to stop the clock at this point?
 }
+#endif
