@@ -1,6 +1,32 @@
 #include <Arduino.h>
 
-// #define DEBUG // uncomment to turn on code that connects to wifi and prints info for debugging
+// #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
+
+enum class Mock_Led {
+    NONE = 0,
+    WARNING = 1
+};
+Mock_Led mock_led;
+enum class Mock_Builtin {
+    NONE = 0,
+    OFF = 1,
+    BLINK = 2
+};
+Mock_Builtin mock_builtin;
+enum class Mock_Tone {
+    NONE = 0,
+    WAIT = 1,
+    UP = 2,
+    DOWN = 3,
+    OFF = 4
+};
+Mock_Tone mock_tone;
+enum class Mock_Motor {
+    OFF = 0,
+    RAMP = 1,
+    ON = 2
+};
+Mock_Motor mock_motor;
 
 #include "font.h"
 #include "pid.h"
@@ -51,13 +77,6 @@ int most_recent_ir_angle = -1;
 
 CircularBuffer<int, 50> ir_buf;
 
-#ifdef DEBUG
-char debugText[200];
-int status = WL_IDLE_STATUS; // the WiFi radio's status
-WiFiServer server(23);
-WiFiClient client;
-#endif
-
 enum State {
     s01_MOTOR_OFF = 1,
     s02_WAIT = 2,
@@ -106,22 +125,6 @@ void setup()
 
     Serial.begin(115200);
 
-#ifdef DEBUG
-    Serial.begin(115200);
-    delay(2000);
-    Serial.print("Attempting to connect to: ");
-    Serial.println(wifi_ssid);
-    WiFi.hostname("spin-clock");
-    status = WiFi.begin(wifi_ssid, wifi_pass); // wifi
-    while (status != WL_CONNECTED) {
-        delay(1000);
-    }
-    IPAddress ip = WiFi.localIP();
-    Serial.print("IP Address: ");
-    Serial.println(ip);
-    server.begin();
-#endif
-
     clearDisplay();
 
     setupTimer();
@@ -165,13 +168,6 @@ void loop()
 
     staged_image_new = true;
 
-#ifdef DEBUG
-    client = server.available();
-    if (client) {
-        client.flush();
-        client.println(debugText);
-    }
-#endif
     petWatchdog();
     delay(100);
 }
@@ -182,11 +178,11 @@ State updateFSM(State state, FsmInput fsm_input)
     case State::s01_MOTOR_OFF:
         if (fsm_input.start_button) { // transition 1-2
             start_micros = micros();
-            tone(PIEZO_PIN, 880);
-            digitalWrite(LED_BUILTIN, LOW);
+            playWaitingTone();
+            turnOffBuiltinLed();
             state = State::s02_WAIT;
         } else { // 1-1 self loop
-            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // blink the built in green led so I don't forget that the clock is on.
+            blinkBuiltinLed();
         }
         return state;
         break;
@@ -195,7 +191,7 @@ State updateFSM(State state, FsmInput fsm_input)
             noTone(PIEZO_PIN);
             state = State::s01_MOTOR_OFF;
         } else if (fsm_input.micros - start_micros > wait_interval_micros) { // transition 2-3
-            tone(PIEZO_PIN, 1320);
+            playSpinningUpTone();
             last_rotation_micros = 0;
             start_micros = fsm_input.micros;
             state = State::s03_SPINNING_UP;
@@ -206,44 +202,51 @@ State updateFSM(State state, FsmInput fsm_input)
         break;
     case State::s03_SPINNING_UP:
         if (fsm_input.stop_button) { // transition 3-5a stop pressed
-            analogWrite(MOTOR_CTRL_PIN, 0);
-            tone(PIEZO_PIN, 1000);
+            turnOffMotor();
+            playSpinningDownTone();
             state = State::s05_SPINNING_DOWN;
         } else if (fsm_input.rotation_interval != 0 && fsm_input.rotation_interval <= (int64_t)1000000 * speed_unit_devisor / speed_setpoint) { // transition 3-4
             // fast enough
-            noTone(PIEZO_PIN);
+            stopPlayingTone();
             state = State::s04_RUNNING;
             ir_buf.clear();
             most_recent_ir_angle = -1;
             motorPid.initialize_time(fsm_input.micros);
-
         } else if (fsm_input.micros - start_micros > spinup_timeout) { // transition 3-5b timeout
-            analogWrite(MOTOR_CTRL_PIN, 0);
-            tone(PIEZO_PIN, 1000);
+            turnOffMotor();
+            playSpinningDownTone();
             state = State::s05_SPINNING_DOWN;
         } else { // self loop
             dangerBlink();
+#ifdef MOCK_FUNCTIONS
+            mock_motor = Mock_Motor::RAMP;
+#else
             analogWrite(MOTOR_CTRL_PIN, constrain((fsm_input.micros - start_micros) / spinup_divider, 0, 255)); // ramp to full power
+#endif
         }
         return state;
         break;
     case State::s04_RUNNING:
         if (fsm_input.stop_button) { // transition 4-5
             stopTimerInterrupts();
-            analogWrite(MOTOR_CTRL_PIN, 0);
-            tone(PIEZO_PIN, 1000);
+            turnOffMotor();
+            playSpinningDownTone();
             FastLED.clear(true);
             state = State::s05_SPINNING_DOWN;
         } else { // 4-4 self loop
+#ifdef MOCK_FUNCTIONS
+            mock_motor = Mock_Motor::ON;
+#else
             int32_t speed = (int64_t)1000000 * speed_unit_devisor / fsm_input.rotation_interval;
             int32_t motor_control = motorPid.calculate(speed_setpoint, speed, fsm_input.micros);
             analogWrite(MOTOR_CTRL_PIN, motor_control);
+#endif
         }
         return state;
         break;
     case State::s05_SPINNING_DOWN:
         if (fsm_input.micros - fsm_input.last_beam_break > spin_down_time_micros) {
-            noTone(PIEZO_PIN);
+            stopPlayingTone();
             FastLED.clear(true);
             state = State::s01_MOTOR_OFF;
         } else {
@@ -356,14 +359,77 @@ int getIRAngle()
     return angle;
 }
 
+inline void turnOffMotor()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_motor = Mock_Motor::OFF;
+#else
+    analogWrite(MOTOR_CTRL_PIN, 0);
+#endif
+} // other motor mock functions are literally inline in updateFsm
+
+inline void playWaitingTone()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_tone = Mock_Tone::WAIT;
+#else
+    tone(PIEZO_PIN, 880);
+#endif
+}
+inline void playSpinningUpTone()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_tone = Mock_Tone::UP;
+#else
+    tone(PIEZO_PIN, 1320);
+#endif
+}
+inline void playSpinningDownTone()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_tone = Mock_Tone::DOWN;
+#else
+    tone(PIEZO_PIN, 1000);
+#endif
+}
+inline void stopPlayingTone()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_tone = Mock_Tone::OFF;
+#else
+    noTone(PIEZO_PIN);
+#endif
+}
+
+inline void turnOffBuiltinLed()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_builtin = Mock_Builtin::OFF;
+#else
+    digitalWrite(LED_BUILTIN, LOW);
+#endif
+}
+inline void blinkBuiltinLed()
+{
+#ifdef MOCK_FUNCTIONS
+    mock_builtin = Mock_Builtin::BLINK;
+#else
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+#endif
+}
+
 void dangerBlink()
 {
+#ifdef MOCK_FUNCTIONS
+    mock_led = Mock_Led::WARNING;
+#else
     static bool blinkVar = false;
     blinkVar = !blinkVar;
     for (int i = 0; i < image_height; i++) {
         leds[i] = (blinkVar) ? CRGB(255, 100, 0) : CRGB(0, 0, 0);
     }
     FastLED.show();
+#endif
 }
 
 void clearDisplay()

@@ -1,9 +1,6 @@
 #ifndef PID_H
 #define PID_H
 #include <Arduino.h>
-#ifdef DEBUG
-extern char debugText[];
-#endif
 /**
  * @brief  A class implementing PID control.
  * @note   Uses 32 bit integer math instead of floats.
@@ -69,10 +66,6 @@ public:
         int64_t output = P * (error) + (sum_error) + D * (error - last_error) / (int32_t)dt; // PID
 
         output += K + setpoint * F; // add constant offset, and feedforward terms
-
-#ifdef DEBUG
-        // sprintf(debugText, "error: %li, input: %li, motor: %li, sumerr: %li", error, input, (int32_t)((int32_t)output / (int32_t)(1 << out_devisor_pow)), sum_error); // debug pid
-#endif
 
         last_error = error;
 
