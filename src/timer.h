@@ -1,11 +1,16 @@
+/**
+ * timer.h contains functions for configuring, starting, and stopping a timer interrupt. The code is based on work done in lab 4.
+ */
 #ifndef TIMER_H
 #define TIMER_H
-
 #include <Arduino.h>
 
 // Timer code -------------------------------- //
 const int CLOCKFREQ = 1000000; // unlike the lab, here we use a clock divider of 4 to allow for slower speeds
 
+/**
+ * @brief  call this on startup to initialize the timer, it doesn't start the interrupt running.
+ */
 void setupTimer()
 {
     /*
@@ -39,9 +44,11 @@ void setupTimer()
     // Serial.println("Timer Initialized!");
 }
 
-/*
- * Sets correct TC timer value and enables TC interrupt at the desired frequency
+/**
+ * @brief  Sets correct TC timer value and enables TC interrupt at the desired frequency
+ * @note  depending on clock frequency and clock devisor there will be lower and upper limits for freq
  * Non-blocking: TC interrupts can happen while program executes
+ * @param  freq: frequency to run timer interrupt at, in hertz
  */
 void setTimerISRRate(int freq)
 {
@@ -60,8 +67,8 @@ void setTimerISRRate(int freq)
     TC3->COUNT16.INTENSET.reg |= TC_INTENSET_MC0;
 }
 
-/*
- * Disables TC timer
+/**
+ * @brief turns off TC timer
  */
 void stopTimerInterrupts()
 {

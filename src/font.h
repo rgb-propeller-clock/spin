@@ -1,12 +1,21 @@
+/**
+ * font.h contains an array that can be used to convert characters to 5x8 arrays of bits that graphically represent each character.
+ * We did not make the font array, but we did write an original function to decode it.
+ */
 #ifndef FONT_H
 #define FONT_H
 
 #include <Arduino.h>
 #include <FastLED.h>
 
+// see font.cpp
 void printString(char* str, long x_pos, CRGB foreground, CRGB background, CRGB image[][8], int width);
 void printChar(byte c, long x_pos, CRGB foreground, CRGB background, CRGB image[][8], int width);
-
+/**
+From experimenting (see font.cpp for our solution) we found that
+one character is represented by 5 bytes, which are the 5 columns of pixels each character has from left to right,
+and each byte's most significant bit is the bottom of the 8 pixel column and each byte's least significant bit is the top.
+*/
 const char font[] = {
     // source: https://github.com/Ameba8195/Arduino/blob/cf5a864ee9011da6c294bebbf38167b2ded6dc50/hardware_v2/cores/arduino/font5x7.h
     0x00, 0x00, 0x00, 0x00, 0x00, // 0x00 (nul)
@@ -266,4 +275,4 @@ const char font[] = {
     0x00, 0x3C, 0x3C, 0x3C, 0x3C, // 0xFE
     0x00, 0x00, 0x00, 0x00, 0x00 // 0xFF
 };
-#endif
+#endif // FONT_H
