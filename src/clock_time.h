@@ -109,7 +109,7 @@ char* getCurrentTime(){
   if (timeSinceStart > (millisInDay)) {
     timeSinceStart = timeSinceStart % millisInDay;
   }
-  int curTime = stringToTimeInt(timeBuf) + ((timeSinceStart) - timeBufSet) / 1000);
+  int curTime = stringToTimeInt(timeBuf) + ((timeSinceStart) - timeBufSet) / 1000;
   timeBufSet = millis();
   int hours = curTime / 60 / 60;
   int mins = (curTime / 60) - (hours * 60);
