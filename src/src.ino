@@ -28,8 +28,8 @@ const uint8_t speed_unit_devisor_power = 12;
 const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
 int32_t speed_setpoint = speed_unit_devisor * 10 / 1; // the second two numbers represent a fractional Rotations Per Second value
 
-uint32_t too_slow_rotation_interval = 1000000 / 8; // devisor is threshold in rotations per second, converts to microseconds per rotation
-uint32_t too_fast_rotation_interval = 1000000 / 12; // devisor is threshold in rotations per second, converts to microseconds per rotation
+uint32_t too_slow_rotation_interval = 1000000 / 9; // devisor is threshold in rotations per second, converts to microseconds per rotation
+uint32_t too_fast_rotation_interval = 1000000 / 13; // devisor is threshold in rotations per second, converts to microseconds per rotation
 
 const byte START_BUTTON_PIN = 1;
 const byte STOP_BUTTON_PIN = 0;
@@ -125,17 +125,21 @@ void loop()
     }
 
     char text[20];
-    if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
-        most_recent_ir_angle = -1;
-        clearDisplay();
-    } else { // show text
-        clearDisplay();
-        sprintf(text, "%d", (int)((millis() / 1000) % 1000));
-        printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
-        // if (most_recent_ir_angle > 100) {
-        //     delay(300); // causes watchdog timer to reboot the MCU
-        // }
-    }
+    clearDisplay();
+    sprintf(text, "speed = %d", 1000000 / last_rotation_micros);
+    printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+
+    // if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
+    //     most_recent_ir_angle = -1;
+    //     clearDisplay();
+    // } else { // show text
+    //     clearDisplay();
+    //     sprintf(text, "%d", (int)((millis() / 1000) % 1000));
+    //     printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+    //     // if (most_recent_ir_angle > 100) {
+    //     //     delay(300); // causes watchdog timer to reboot the MCU
+    //     // }
+    // }
 
     staged_image_new = true;
 
@@ -199,7 +203,8 @@ State updateFSM(State state, FsmInput fsm_input)
         break;
     case State::s04_RUNNING:
         if (fsm_input.stop_button
-            || (fsm_input.micros - fsm_input.last_beam_break > too_slow_rotation_interval) // too slow
+            || ((fsm_input.micros - fsm_input.last_beam_break) > too_slow_rotation_interval) // too slow/stopped, rotation_interval doesn't need to update)
+            || (fsm_input.rotation_interval > too_slow_rotation_interval) // too slow
             || (fsm_input.rotation_interval < too_fast_rotation_interval) // too fast
         ) { // transition 4-5
             // if stop button is pressed or speed is too slow or speed is too fast, turn off motor.
