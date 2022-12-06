@@ -1,36 +1,15 @@
 #include <Arduino.h>
 
-// #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
-
-enum class Mock_Led {
-    NONE = 0,
-    WARNING = 1
-};
-Mock_Led mock_led;
-enum class Mock_Builtin {
-    NONE = 0,
-    OFF = 1,
-    BLINK = 2
-};
-Mock_Builtin mock_builtin;
-enum class Mock_Tone {
-    NONE = 0,
-    WAIT = 1,
-    UP = 2,
-    DOWN = 3,
-    OFF = 4
-};
-Mock_Tone mock_tone;
-enum class Mock_Motor {
-    OFF = 0,
-    RAMP = 1,
-    ON = 2
-};
-Mock_Motor mock_motor;
+// #define RUN_UNIT_TESTS // uncomment to run unit tests
+#ifdef RUN_UNIT_TESTS
+#define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
+#endif
 
 #include "font.h"
+#include "fsm_types.h"
 #include "pid.h"
 #include "timer.h"
+#include "unit_tests.h"
 #include "watchdog.h"
 #include <CircularBuffer.h> // https://github.com/rlogiacco/CircularBuffer
 #include <FastLED.h> //https://github.com/FastLED/FastLED/
@@ -77,25 +56,6 @@ int most_recent_ir_angle = -1;
 
 CircularBuffer<int, 50> ir_buf;
 
-enum State {
-    s01_MOTOR_OFF = 1,
-    s02_WAIT = 2,
-    s03_SPINNING_UP = 3,
-    s04_RUNNING = 4,
-    s05_SPINNING_DOWN = 5
-};
-volatile State state;
-
-struct FsmInput {
-    volatile unsigned long micros;
-    volatile bool start_button;
-    volatile bool stop_button;
-    volatile unsigned long rotation_interval;
-    volatile unsigned long last_beam_break;
-    volatile float bat_volt;
-};
-FsmInput fsm_input;
-
 void setup()
 {
     state = State::s01_MOTOR_OFF;
@@ -124,6 +84,14 @@ void setup()
     fsm_input.bat_volt = 0;
 
     Serial.begin(115200);
+
+#ifdef RUN_UNIT_TESTS
+    while (!Serial)
+        ;
+    Serial.println("starting unit tests: ");
+    delay(1000);
+    runAllTests(); // runAllTests never exits
+#endif
 
     clearDisplay();
 
@@ -188,7 +156,7 @@ State updateFSM(State state, FsmInput fsm_input)
         break;
     case State::s02_WAIT:
         if (fsm_input.stop_button) { // transition 2-1
-            noTone(PIEZO_PIN);
+            stopPlayingTone();
             state = State::s01_MOTOR_OFF;
         } else if (fsm_input.micros - start_micros > wait_interval_micros) { // transition 2-3
             playSpinningUpTone();
