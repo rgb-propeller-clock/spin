@@ -7,7 +7,13 @@
  */
 class PID {
 public:
+    /**
+     * constant offset to output
+     */
     int32_t K;
+    /**
+     * feedforward term (output += F*setpoint)
+     */
     int32_t F;
     int32_t P;
     int32_t I;
