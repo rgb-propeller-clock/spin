@@ -28,6 +28,9 @@ const uint8_t speed_unit_devisor_power = 12;
 const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
 int32_t speed_setpoint = speed_unit_devisor * 10 / 1; // the second two numbers represent a fractional Rotations Per Second value
 
+uint32_t too_slow_rotation_interval = 1000000 / 8; // devisor is threshold in rotations per second, converts to microseconds per rotation
+uint32_t too_fast_rotation_interval = 1000000 / 12; // devisor is threshold in rotations per second, converts to microseconds per rotation
+
 const byte START_BUTTON_PIN = 1;
 const byte STOP_BUTTON_PIN = 0;
 const byte BAT_VOLT_PIN = A1;
@@ -195,7 +198,11 @@ State updateFSM(State state, FsmInput fsm_input)
         return state;
         break;
     case State::s04_RUNNING:
-        if (fsm_input.stop_button) { // transition 4-5
+        if (fsm_input.stop_button
+            || (fsm_input.micros - fsm_input.last_beam_break > too_slow_rotation_interval) // too slow
+            || (fsm_input.rotation_interval < too_fast_rotation_interval) // too fast
+        ) { // transition 4-5
+            // if stop button is pressed or speed is too slow or speed is too fast, turn off motor.
             stopTimerInterrupts();
             turnOffMotor();
             playSpinningDownTone();
