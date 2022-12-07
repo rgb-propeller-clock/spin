@@ -140,7 +140,7 @@ void loop()
 #if APPLICATION == 1
     clearDisplay();
     char* text = getCurrentTime();
-    printString(text, -millis() / 60, CHSV(millis() / 5, 255, 245), CRGB(0, 0, 0), staged_image, image_width);
+    printString(text, -millis() / 60, CHSV(millis() / 10, 255, 245), CRGB(0, 0, 0), staged_image, image_width);
 #endif
 
 #if APPLICATION == 2
@@ -223,8 +223,8 @@ State updateFSM(State state, FsmInput fsm_input)
             || ((fsm_input.micros - fsm_input.last_beam_break) > too_slow_rotation_interval) // too slow/stopped, rotation_interval doesn't need to update)
             || (fsm_input.rotation_interval > too_slow_rotation_interval) // too slow
             || (fsm_input.rotation_interval < too_fast_rotation_interval) // too fast
-        ) { // transition 4-5
-            // if stop button is pressed or speed is too slow or speed is too fast, turn off motor.
+            || (fsm_input.bat_volt < bat_voltage_low_thresh) // battery low
+        ) { // transition 4-5 (stop running)
             stopTimerInterrupts();
             turnOffMotor();
             playSpinningDownTone();
