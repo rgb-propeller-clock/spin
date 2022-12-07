@@ -263,6 +263,9 @@ State updateFSM(State state, FsmInput fsm_input)
     return state;
 }
 
+/**
+ * @brief this ISR gets run once per revolution by a pin change interrupt caused by a beam break sensor
+ */
 void beamBreakIsr()
 {
     // speed
@@ -287,6 +290,9 @@ void beamBreakIsr()
     }
 }
 
+/**
+ * @brief  This ISR gets run by a timer interrupt at a rate that the leds can be updated for a new column of pixels image_width times per revolution
+ */
 void TC3_Handler() // timerISR
 {
     int temp_column_counter = constrain(column_counter, 0, image_width - 1);
@@ -304,10 +310,12 @@ void TC3_Handler() // timerISR
     TC3->COUNT16.INTFLAG.reg |= TC_INTFLAG_MC0; // Clear interrupt register flag
 }
 
+/**
+ * @brief  runs updateFSM with stop_button=true (an event that can update the FSM)
+ */
 void stopButtonIsr()
 {
     fsm_input.last_beam_break = last_beam_break_micros;
-    fsm_input.micros = micros();
     fsm_input.rotation_interval = last_rotation_micros;
     fsm_input.start_button = false;
 
@@ -316,20 +324,22 @@ void stopButtonIsr()
     state = updateFSM(state, fsm_input);
 }
 
+/**
+ * @brief  runs updateFSM with start_button=true (an event that can update the FSM)
+ */
 void startButtonIsr()
 {
     fsm_input.last_beam_break = last_beam_break_micros;
-    fsm_input.micros = micros();
     fsm_input.rotation_interval = last_rotation_micros;
     fsm_input.stop_button = false;
 
     fsm_input.start_button = true;
+    fsm_input.micros = micros();
     state = updateFSM(state, fsm_input);
 }
 
 /**
- * @brief
- * @note
+ * @brief This function calculates what angle an IR remote most recently sent a signal from.
  * @retval Which column of the image is in the direction that the IR signal is coming from. Or -1 if no new reading is available.
  */
 int getIRAngle()
@@ -356,6 +366,9 @@ int getIRAngle()
     return angle;
 }
 
+/**
+ * @brief  turns off the motor, or becomes a mock function that only sets a variable if unit tests are being run.
+ */
 inline void turnOffMotor()
 {
 #ifdef MOCK_FUNCTIONS
@@ -365,6 +378,10 @@ inline void turnOffMotor()
 #endif
 } // other motor mock functions are literally inline in updateFsm
 
+/**
+ * @brief  plays a tone, or becomes a mock function that only sets a variable if unit tests are being run.
+ * This tone is heard between the time when the start button is pressed and the motor starts up.
+ */
 inline void playWaitingTone()
 {
 #ifdef MOCK_FUNCTIONS
@@ -373,6 +390,10 @@ inline void playWaitingTone()
     tone(PIEZO_PIN, 880);
 #endif
 }
+/**
+ * @brief  plays a tone, or becomes a mock function that only sets a variable if unit tests are being run.
+ * This tone is heard while the motor accelerated the clock to the target speed.
+ */
 inline void playSpinningUpTone()
 {
 #ifdef MOCK_FUNCTIONS
@@ -381,6 +402,10 @@ inline void playSpinningUpTone()
     tone(PIEZO_PIN, 1320);
 #endif
 }
+/**
+ * @brief  plays a tone, or becomes a mock function that only sets a variable if unit tests are being run.
+ * This tone is heard between the time when the motor turns off and the clock detects that it has spun down.
+ */
 inline void playSpinningDownTone()
 {
 #ifdef MOCK_FUNCTIONS
@@ -389,6 +414,10 @@ inline void playSpinningDownTone()
     tone(PIEZO_PIN, 1000);
 #endif
 }
+/**
+ * @brief  stops any tone from being played, or becomes a mock function that only sets a variable if unit tests are being run.
+ */
+
 inline void stopPlayingTone()
 {
 #ifdef MOCK_FUNCTIONS
@@ -397,7 +426,7 @@ inline void stopPlayingTone()
     noTone(PIEZO_PIN);
 #endif
 }
-
+// can be a mock function for unit tests
 inline void turnOffBuiltinLed()
 {
 #ifdef MOCK_FUNCTIONS
@@ -406,6 +435,7 @@ inline void turnOffBuiltinLed()
     digitalWrite(LED_BUILTIN, LOW);
 #endif
 }
+// can be a mock function for unit tests
 inline void blinkBuiltinLed()
 {
 #ifdef MOCK_FUNCTIONS
@@ -414,7 +444,10 @@ inline void blinkBuiltinLed()
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 #endif
 }
-
+/**
+ * @brief flashes the lights orange and off, used to indicate that the clock will move or is moving
+ * @note   can be a mock function for unit tests
+ */
 void dangerBlink()
 {
 #ifdef MOCK_FUNCTIONS
@@ -429,6 +462,9 @@ void dangerBlink()
 #endif
 }
 
+/**
+ * @brief  sets every pixel in the image to off.
+ */
 void clearDisplay()
 {
     for (int x = 0; x < image_width; x++) {
