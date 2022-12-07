@@ -91,16 +91,16 @@ void setup()
 
     Serial.begin(115200);
 
-#if APPLICATION == 1
-    getStartTime();
-#endif
-
 #ifdef RUN_UNIT_TESTS
     while (!Serial)
         ;
     Serial.println("starting unit tests: ");
     delay(1000);
     runAllTests(); // runAllTests never exits
+#endif
+
+#if APPLICATION == 1
+    getStartTime();
 #endif
 
     clearDisplay();
