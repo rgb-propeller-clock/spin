@@ -5,7 +5,7 @@
 #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
 #endif
 
-#define APPLICATION 1 // 0=display the speed, 1==display the time
+#define APPLICATION 1 // 0=display the speed, 1==display the time, 2==IR and watchdog test
 
 #include "clock_time.h"
 #include "font.h"
@@ -140,21 +140,23 @@ void loop()
 #if APPLICATION == 1
     clearDisplay();
     char* text = getCurrentTime();
-    Serial.println(getCurrentTime());
-    printString(text, 0, CHSV(0, 0, 245), CRGB(0, 0, 0), staged_image, image_width);
+    printString(text, -millis() / 60, CHSV(millis() / 5, 255, 245), CRGB(0, 0, 0), staged_image, image_width);
 #endif
 
-    // if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
-    //     most_recent_ir_angle = -1;
-    //     clearDisplay();
-    // } else { // show text
-    //     clearDisplay();
-    //     sprintf(text, "%d", (int)((millis() / 1000) % 1000));
-    //     printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
-    //     // if (most_recent_ir_angle > 100) {
-    //     //     delay(300); // causes watchdog timer to reboot the MCU
-    //     // }
-    // }
+#if APPLICATION == 2
+    char text[20];
+    if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
+        most_recent_ir_angle = -1;
+        clearDisplay();
+    } else { // show text
+        clearDisplay();
+        sprintf(text, "%d", (int)((millis() / 1000) % 1000));
+        printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+        if (most_recent_ir_angle > 100) {
+            delay(300); // causes watchdog timer to reboot the MCU
+        }
+    }
+#endif
 
     staged_image_new = true;
 
