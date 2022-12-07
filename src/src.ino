@@ -5,6 +5,9 @@
 #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
 #endif
 
+#define APPLICATION 1 // 0=display the speed, 1==display the time
+
+#include "clock_time.h"
 #include "font.h"
 #include "fsm_types.h"
 #include "pid.h"
@@ -88,6 +91,10 @@ void setup()
 
     Serial.begin(115200);
 
+#if APPLICATION == 1
+    getStartTime();
+#endif
+
 #ifdef RUN_UNIT_TESTS
     while (!Serial)
         ;
@@ -124,10 +131,18 @@ void loop()
         most_recent_ir_angle = irAngle;
     }
 
+#if APPLICATION == 0
     char text[20];
     clearDisplay();
     sprintf(text, "speed = %d", 1000000 / last_rotation_micros);
-    printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+    printString(text, 0, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
+#endif
+#if APPLICATION == 1
+    clearDisplay();
+    char* text = getCurrentTime();
+    Serial.println(getCurrentTime());
+    printString(text, 0, CHSV(0, 0, 245), CRGB(0, 0, 0), staged_image, image_width);
+#endif
 
     // if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 5000000) { // clear display if no ir angle or it's been 5 seconds
     //     most_recent_ir_angle = -1;
