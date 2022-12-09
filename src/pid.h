@@ -38,7 +38,7 @@ public:
 
 public:
     /**
-     * @brief  default constructor for PID class, don't use, use the one that takes parameters
+     * @brief  default constructor for PID class, use the one that takes parameters
      */
     PID()
     {
@@ -58,7 +58,7 @@ public:
     /**
      * @brief  constructor for PID class
      * @param  k: constant offset to output
-     * @param  f: feedforward term
+     * @param  f: feedforward term (output += F*setpoint)
      * @param  p: proportional
      * @param  i: integral
      * @param  d: derivitive

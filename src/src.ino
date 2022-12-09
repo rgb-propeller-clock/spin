@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 // #define RUN_UNIT_TESTS // uncomment to run unit tests
+
 #ifdef RUN_UNIT_TESTS
 #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
 #endif
@@ -20,15 +21,15 @@
 
 PID motorPid;
 
-const unsigned long wait_interval_micros = 2000000;
-const unsigned long spin_down_time_micros = 1500000;
-const unsigned long spinup_timeout = 5000000;
-const unsigned int spinup_divider = 2000;
-const float bat_voltage_scaler = 0.01;
-const float bat_voltage_low_thresh = 6.5;
+const unsigned long wait_interval_micros = 2000000; // time between pressing start button and spinning up
+const unsigned long spin_down_time_micros = 1500000; // if it's been this long since a beam break measurement, consider the clock to have finished spinning down
+const unsigned long spinup_timeout = 5000000; // if the target speed hasn't been reached after this time in microseconds, stop spinning up and turn the motor off
+const unsigned int spinup_divider = 2000; // analogWrite (time in microseconds) / (spinup_divider) used to make the clock start more smoothly
+const float bat_voltage_scaler = 0.01; // used to calibrate battery monitor; multiplied by analogRead
+const float bat_voltage_low_thresh = 6.5; // clock stops spinning if batteries go below this voltage
 
-const uint8_t speed_unit_devisor_power = 12;
-const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power);
+const uint8_t speed_unit_devisor_power = 12; // to provide more resolution for speed measurements in RPS, they are multiplied by 2^speed_unit_devisor_power
+const uint32_t speed_unit_devisor = (1 << speed_unit_devisor_power); // 2^speed_unit_devisor_power
 int32_t speed_setpoint = speed_unit_devisor * 10 / 1; // the second two numbers represent a fractional Rotations Per Second value
 
 uint32_t too_slow_rotation_interval = 1000000 / 9; // devisor is threshold in rotations per second, converts to microseconds per rotation
@@ -44,23 +45,23 @@ const byte LEDS_DATA_PIN = 8;
 const byte LEDS_CLOCK_PIN = 9;
 const byte IR_PIN = 5;
 
-const byte image_height = 8;
-CRGB leds[image_height];
+const byte image_height = 8; // number of leds in vertical column
+CRGB leds[image_height]; // CRGB is used by FastLED to represent colors
 
-const int image_width = 125; // do not set to above 2100 (causes overflow in calculation of isrRate)
-CRGB staged_image[image_width][image_height] = { 0 };
-CRGB current_image[image_width][image_height];
+const int image_width = 125; // Horizontal resolution of display; do not set to above 2100 (causes overflow in calculation of isrRate)
+CRGB staged_image[image_width][image_height] = { 0 }; // buffer to print characters to
+CRGB current_image[image_width][image_height]; // buffer being displayed
 volatile bool staged_image_new; // we want this to be atomic
-volatile unsigned long last_rotation_micros; // interval
+volatile unsigned long last_rotation_micros; // interval of most recent complete rotation
 volatile unsigned long last_beam_break_micros;
-volatile int column_counter;
-volatile unsigned long start_micros; // variable for state machine (so it's actually an extended state machine)
+volatile int column_counter; // incremented by timer ISR, used to know what column of the image to send to the LEDs
+volatile unsigned long start_micros; // variable for state machine (so it's an extended state machine)
 
+// used for the IR receiver
 volatile unsigned long last_ir_micros;
 volatile boolean ir_buf_lock = false;
 int most_recent_ir_angle = -1;
-
-CircularBuffer<int, 50> ir_buf;
+CircularBuffer<int, 50> ir_buf; // stores data for calculating what direction the IR remote is
 
 void setup()
 {
@@ -110,8 +111,8 @@ void setup()
 
     clearDisplay();
 
-    setupTimer();
-    setupWatchdog();
+    setupTimer(); // prepare to use a timer interrupt (for timing the update of the LEDs)
+    setupWatchdog(); // configures and starts watchdog timer
 
     attachInterrupt(BEAM_BREAK_PIN, beamBreakIsr, FALLING);
     attachInterrupt(START_BUTTON_PIN, startButtonIsr, FALLING); // buttons pull pins low when pressed
@@ -301,10 +302,10 @@ void beamBreakIsr()
 void TC3_Handler() // timerISR
 {
     int temp_column_counter = constrain(column_counter, 0, image_width - 1);
-    if (digitalRead(IR_PIN) == LOW) {
+    if (digitalRead(IR_PIN) == LOW) { // IR light detected
         if (ir_buf_lock == false) { // unlocked
             last_ir_micros = micros();
-            ir_buf.push(temp_column_counter); // IR currently detected, save current angle to buffer
+            ir_buf.push(temp_column_counter); // save current angle to buffer
         }
     }
     for (int i = 0; i < image_height; i++) {

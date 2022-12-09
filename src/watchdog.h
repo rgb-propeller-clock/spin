@@ -65,6 +65,6 @@ void WDT_Handler()
     WDT->INTFLAG.reg = WDT_INTFLAG_EW;
     // : Warn user that a watchdog reset may happen
     Serial.println("ERROR: Did not pet watchdog!");
-    // TODO: Do we want to stop the clock at this (early warning) point?
+    // we don't need to do anything with this early warning, the reboot will turn off the clock
 }
 #endif
