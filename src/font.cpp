@@ -19,7 +19,7 @@ void printChar(byte c, long x_pos, CRGB foreground, CRGB background, CRGB image[
         for (int y = 0; y < 8; y++) { // assumes screen is 8 characters tall
             if (x < 5)
                 image[column][y] = bitRead(font[c * 5 + x], 7 - y) ? foreground : background;
-            else // spacing between charaters
+            else // spacing between characters
                 image[column][y] = background;
         }
     }
