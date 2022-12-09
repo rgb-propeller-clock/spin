@@ -1,6 +1,7 @@
 /**
  * font.h contains an array that can be used to convert characters to 5x8 arrays of bits that graphically represent each character.
  * We did not make the font array, but we did write an original function to decode it.
+ * See the font_viewer folder for a small Java program we used to test our font decoding.
  */
 #ifndef FONT_H
 #define FONT_H
