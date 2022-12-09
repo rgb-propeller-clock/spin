@@ -100,7 +100,7 @@ void setup()
 #endif
 
 #if APPLICATION == 1
-    leds[0] = CRGB(150, 180, 0);
+    leds[0] = CRGB(0, 0, 255);
     FastLED.show();
     getStartTime(); // takes a few seconds to connect to wifi and get the time
     leds[0] = CRGB(0, 0, 0);
