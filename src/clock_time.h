@@ -114,7 +114,6 @@ char* getStartTime()
 
 char* getCurrentTime()
 {
-    // TODO: Consider midnight case
     int curMillis = millis();
     int millisInDay = 24 * 60 * 60 * 1000;
     if (timeSinceStart > (millisInDay)) {
@@ -124,7 +123,7 @@ char* getCurrentTime()
     int hours = curTime / 60 / 60;
     int mins = (curTime / 60) - (hours * 60);
     int secs = curTime - (hours * 60 * 60) - (mins * 60);
-    sprintf(timeBuf, "%02d:%02d:%02d", hours, mins, secs);
+    sprintf(timeBuf, "%02d:%02d:%02d", hours % 24, mins, secs);
     return timeBuf;
 }
 
