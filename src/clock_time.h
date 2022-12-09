@@ -10,10 +10,9 @@ char startTimeBuf[20];
 char timeBuf[40];
 int timeSinceStart;
 
-char ssid[] = "RLAB"; // network SSID (name)
-char pass[] = "metropolis"; // for networks that require a password
+char ssid[] = "router"; // network SSID (name)
+char pass[] = "password"; // for networks that require a password
 int status = WL_IDLE_STATUS; // the WiFi radio's status
-
 
 bool connect_to_webpage()
 {
@@ -31,14 +30,13 @@ bool connect_to_webpage()
     }
 }
 
-
 void setup_wifi()
 {
     // attempt to connect to WiFi network:
     while (status != WL_CONNECTED) {
         Serial.print("Attempting to connect to: ");
         Serial.println(ssid);
-        status = WiFi.begin(ssid, pass); // WiFi.begin(ssid, pass) for password
+        status = WiFi.begin(ssid, pass);
         delay(10000);
     }
     Serial.println("Connected!");

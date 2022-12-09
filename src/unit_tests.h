@@ -33,12 +33,13 @@ Mock_Motor mock_motor;
 FsmInput test_input;
 
 extern State updateFSM(State state, FsmInput fsm_input);
-
 extern volatile unsigned long start_micros;
 
+/**
+ * resets all variables used for tests (call between tests)
+ * */
 void resetInput()
 {
-    IPAddress a;
     test_input.last_beam_break = micros();
     test_input.micros = micros();
     test_input.rotation_interval = 0;
@@ -51,6 +52,10 @@ void resetInput()
     mock_motor = Mock_Motor::OFF;
 }
 
+/**
+ * @brief  Runs unit tests of the FSM and prints results to the Serial monitor
+ * @note  This function never exits, it ends with while(true)
+ */
 void runAllTests()
 {
     bool passed = true;

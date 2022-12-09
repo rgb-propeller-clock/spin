@@ -1,9 +1,31 @@
 {
     "cSpell.words": [
+        "CLKCTRL",
+        "CLKEN",
+        "CLOCKFREQ",
+        "CTRLA",
+        "DIVSEL",
+        "EWCTRL",
+        "feedforward",
+        "GCLK",
+        "GENCTRL",
+        "GENDIV",
+        "GENEN",
+        "INTENCLR",
+        "INTENSET",
         "INTFLAG",
+        "MFRQ",
+        "NVIC",
+        "OSCULP",
         "PIEZO",
+        "PRESC",
+        "PRESCALER",
+        "PRESCSYNC",
         "setpoint",
         "spinup",
-        "ssid"
+        "ssid",
+        "SYNCBUSY",
+        "WAVEGEN",
+        "worldtimeapi"
     ]
 }

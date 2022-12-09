@@ -1,5 +1,11 @@
+/**
+ * This file defines some data structures used by our FSM.
+ */
 #ifndef FSM_TYPES_H
 #define FSM_TYPES_H
+/**
+ * @brief  enum of states
+ */
 enum State {
     s01_MOTOR_OFF = 1,
     s02_WAIT = 2,
@@ -9,6 +15,9 @@ enum State {
 };
 volatile State state;
 
+/**
+ * @brief  struct containing inputs to our FSM
+ */
 struct FsmInput {
     volatile unsigned long micros;
     volatile bool start_button;

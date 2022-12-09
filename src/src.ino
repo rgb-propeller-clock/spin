@@ -54,7 +54,7 @@ volatile bool staged_image_new; // we want this to be atomic
 volatile unsigned long last_rotation_micros; // interval
 volatile unsigned long last_beam_break_micros;
 volatile int column_counter;
-volatile unsigned long start_micros; // variable for FSM
+volatile unsigned long start_micros; // variable for state machine (so it's actually an extended state machine)
 
 volatile unsigned long last_ir_micros;
 volatile boolean ir_buf_lock = false;
@@ -100,7 +100,7 @@ void setup()
 #endif
 
 #if APPLICATION == 1
-    getStartTime();
+    getStartTime(); // takes a few seconds to connect to wifi and get the time
 #endif
 
     clearDisplay();
@@ -127,7 +127,7 @@ void loop()
     interrupts();
 
     int irAngle = getIRAngle();
-    if (irAngle != -1) {
+    if (irAngle != -1) { // if new valid angle is available
         most_recent_ir_angle = irAngle;
     }
 
@@ -242,11 +242,11 @@ State updateFSM(State state, FsmInput fsm_input)
         return state;
         break;
     case State::s05_SPINNING_DOWN:
-        if (fsm_input.micros - fsm_input.last_beam_break > spin_down_time_micros) {
+        if (fsm_input.micros - fsm_input.last_beam_break > spin_down_time_micros) { // 5-1 has stopped spinning
             stopPlayingTone();
             FastLED.clear(true);
             state = State::s01_MOTOR_OFF;
-        } else {
+        } else { // self loop
             dangerBlink();
         }
         return state;
@@ -257,8 +257,8 @@ State updateFSM(State state, FsmInput fsm_input)
         stopTimerInterrupts();
         noTone(PIEZO_PIN);
         state = State::s05_SPINNING_DOWN;
-        break;
         return state;
+        break;
     }
     return state;
 }
@@ -417,7 +417,6 @@ inline void playSpinningDownTone()
 /**
  * @brief  stops any tone from being played, or becomes a mock function that only sets a variable if unit tests are being run.
  */
-
 inline void stopPlayingTone()
 {
 #ifdef MOCK_FUNCTIONS
@@ -426,7 +425,9 @@ inline void stopPlayingTone()
     noTone(PIEZO_PIN);
 #endif
 }
-// can be a mock function for unit tests
+/**
+ * @brief turns off led on Arduino, can be a mock function for unit tests
+ */
 inline void turnOffBuiltinLed()
 {
 #ifdef MOCK_FUNCTIONS
@@ -435,7 +436,9 @@ inline void turnOffBuiltinLed()
     digitalWrite(LED_BUILTIN, LOW);
 #endif
 }
-// can be a mock function for unit tests
+/**
+ * @brief blinks led on Arduino, can be a mock function for unit tests
+ */
 inline void blinkBuiltinLed()
 {
 #ifdef MOCK_FUNCTIONS
