@@ -1,3 +1,9 @@
+/**
+ * This file contains functions for connecting to the internet over WiFi,
+ * retrieving the current time from an api,
+ * and creating a string representing the current time that updates as time passes
+ * without further wifi connections being necessary.
+ */
 #ifndef CLOCK_TIME_H
 #define CLOCK_TIME_H
 #include <Arduino.h>

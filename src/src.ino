@@ -1,3 +1,6 @@
+/**
+ * This file contains Arduino's setup() and loop() functions and the state machine. More generalized
+ */
 #include <Arduino.h>
 
 // #define RUN_UNIT_TESTS // uncomment to run unit tests
