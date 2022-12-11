@@ -2,7 +2,7 @@
 
 This repository powers an arduino project consisting of a spinning display of LEDs that shows the current time to the user. Let's see it in action:
 
-![](https://github.com/rgb-propeller-clock/spin/propellor_display.gif)
+![](https://github.com/rgb-propeller-clock/spin/blob/main/propellor_display.gif)
 
 # High Level Architecture
 ![Propellor_diagrams drawio (14)](https://user-images.githubusercontent.com/47846691/206894422-15a5a0f6-1dc2-4070-9469-f3a7d94a63ba.png)
