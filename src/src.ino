@@ -9,7 +9,7 @@
 #define MOCK_FUNCTIONS // uncomment to make update_fsm call mock functions
 #endif
 
-#define APPLICATION 1 // 0=display the speed, 1==display the time, 2==IR and watchdog test
+#define APPLICATION 3 // 0=display the speed, 1==display the time, 2==IR and watchdog test, 3== both 1 and 2
 
 #include "clock_time.h"
 #include "font.h"
@@ -103,7 +103,7 @@ void setup()
     runAllTests(); // runAllTests never exits
 #endif
 
-#if APPLICATION == 1
+#if ((APPLICATION == 1) || (APPLICATION == 3))
     leds[0] = CRGB(0, 0, 255);
     FastLED.show();
     getStartTime(); // takes a few seconds to connect to wifi and get the time
@@ -162,6 +162,23 @@ void loop()
         sprintf(text, "%d", (int)((millis() / 1000) % 1000));
         printString(text, most_recent_ir_angle, CHSV(0, 0, 145), CRGB(0, 0, 0), staged_image, image_width);
         if (most_recent_ir_angle > 100) {
+            delay(300); // causes watchdog timer to reboot the MCU
+        }
+    }
+#endif
+
+#if APPLICATION == 3
+    char text[20];
+    if (most_recent_ir_angle == -1 || micros() - last_ir_micros > 10000000) { // show time if no ir angle or it's been 10 seconds
+        most_recent_ir_angle = -1;
+        clearDisplay();
+        char* text = getCurrentTime();
+        printString(text, -millis() / 60, CHSV(millis() / 10, 255, 245), CRGB(0, 0, 0), staged_image, image_width);
+    } else { // show text
+        clearDisplay();
+        sprintf(text, "1600");
+        printString(text, most_recent_ir_angle - 15, CHSV(millis() / 10, 255, 255), CRGB(0, 0, 0), staged_image, image_width);
+        if (most_recent_ir_angle > 110) {
             delay(300); // causes watchdog timer to reboot the MCU
         }
     }
