@@ -19,3 +19,7 @@ After pressing the on button, the motor speed is set and the device spins up. On
 
 # Finite State Machine (FSM)
 ![Propellor_diagrams drawio (15)](https://user-images.githubusercontent.com/47846691/206894883-d7a30349-659d-4f78-a0ce-565e341e03e8.png)
+
+# CAD
+
+Onshape CAD for the 3d printed components can be found [here](https://cad.onshape.com/documents/4283ba1e515a79f05b37f05b/w/2211f0aba85311ab91e320af/e/22419e38b691b59c04773b7b?renderMode=0&uiState=63938c81ef86430bb119cc47).
