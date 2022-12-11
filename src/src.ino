@@ -25,7 +25,7 @@
 PID motorPid;
 
 const unsigned long wait_interval_micros = 2000000; // time between pressing start button and spinning up
-const unsigned long spin_down_time_micros = 1500000; // if it's been this long since a beam break measurement, consider the clock to have finished spinning down
+const unsigned long down_time = 1500000; // if it's been this long since a beam break measurement, consider the clock to have finished spinning down
 const unsigned long spinup_timeout = 5000000; // if the target speed hasn't been reached after this time in microseconds, stop spinning up and turn the motor off
 const unsigned int spinup_divider = 2000; // analogWrite (time in microseconds) / (spinup_divider) used to make the clock start more smoothly
 const float bat_voltage_scaler = 0.01; // used to calibrate battery monitor; multiplied by analogRead
@@ -251,7 +251,7 @@ State updateFSM(State state, FsmInput fsm_input)
         return state;
         break;
     case State::s05_SPINNING_DOWN:
-        if (fsm_input.micros - fsm_input.last_beam_break > spin_down_time_micros) { // 5-1 has stopped spinning
+        if (fsm_input.micros - fsm_input.last_beam_break > down_time) { // 5-1 has stopped spinning
             stopPlayingTone();
             FastLED.clear(true);
             state = State::s01_MOTOR_OFF;
