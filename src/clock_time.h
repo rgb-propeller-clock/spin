@@ -20,6 +20,10 @@ char ssid[] = "router"; // network SSID (name)
 char pass[] = "password"; // for networks that require a password
 int status = WL_IDLE_STATUS; // the WiFi radio's status
 
+/**
+ * @brief  attempts to connect to the worldtimeapi.org website
+ * @retval true if connection successful, false if unsuccessful
+ */
 bool connect_to_webpage()
 {
     Serial.println("Attempting to connect to webpage");
@@ -36,6 +40,9 @@ bool connect_to_webpage()
     }
 }
 
+/**
+ * @brief  connects to a wifi network, call on startup
+ */
 void setup_wifi()
 {
     // attempt to connect to WiFi network:
@@ -58,6 +65,10 @@ void setup_wifi()
     }
 }
 
+/**
+ * @brief
+ * @retval true if string containing time has been stored
+ */
 bool read_webpage()
 {
     int len = client.available();
@@ -65,11 +76,13 @@ bool read_webpage()
         return false;
     }
     memset(buffer, 0x0, sizeof(buffer));
-    int index = 0;
+    unsigned int index = 0;
     while (client.available()) {
-        char c = client.read();
+        char c = client.read(); // read data from webpage
         buffer[index] = c;
-        index++;
+        if (index < sizeof(buffer) - 1) { // prevent buffer overflow
+            index++;
+        }
     }
     timeSinceStart = millis();
     Serial.println("Content received");
@@ -81,18 +94,27 @@ bool read_webpage()
             memset(startTimeBuf, 0x0, sizeof(startTimeBuf));
             int i = 22;
             int k = 0;
-            while (i <= 29) {
+            while (i <= 29) { // read the part of the response containing the time into a smaller buffer
                 startTimeBuf[k] = response[i];
                 i++;
                 k++;
             }
+        } else {
+            return false; // "datetime" not found in response
         }
         interrupts();
-        delay(500);
+        delay(500); // don't spam the API too fast if webpage_read takes more than one attempt
+    } else {
+        return false; // no data read; index==0
     }
     return true;
 }
 
+/**
+ * @brief converts a string representation of time to an integer value of seconds
+ * @param  t: char* string representing time, must be 8 characters, ex: 16:31:02
+ * @retval integer value of seconds since midnight.
+ */
 int stringToTimeInt(char* t)
 {
     char hours[2];
@@ -110,14 +132,22 @@ int stringToTimeInt(char* t)
     return (hoursInt * 60 * 60) + (minsInt * 60) + secsInt;
 }
 
-char* getStartTime()
+/**
+ * @brief connects to wifi and saves a string representing the time.
+ * @note blocks until wifi connects and webpage returns a good response
+ * @retval pointer to global variable that contains the time represented as a string
+ */
+void getStartTime()
 {
     setup_wifi();
     while (!read_webpage())
         ;
-    return startTimeBuf;
 }
 
+/**
+ * @brief This function uses millis() to calculate the current time without any more connections to a time API.
+ * @retval pointer to global variable string containing the current time in 24 hour time
+ */
 char* getCurrentTime()
 {
     int curMillis = millis();
@@ -132,14 +162,4 @@ char* getCurrentTime()
     sprintf(timeBuf, "%02d:%02d:%02d", hours % 24, mins, secs);
     return timeBuf;
 }
-
-// void setup() {
-//   Serial.begin(9600);
-//   while(!Serial);
-//   Serial.println(getStartTime());
-// }
-// void loop() {
-//   Serial.println(getCurrentTime());
-//   delay(1000);
-// }
 #endif

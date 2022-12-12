@@ -1,6 +1,5 @@
 #ifndef UNIT_TESTS_H
 #define UNIT_TESTS_H
-#include "Printable.h"
 #include "fsm_types.h"
 #include <Arduino.h>
 
@@ -266,7 +265,7 @@ void runAllTests()
     if (passed) {
         Serial.println("All tests passed!");
     } else {
-        Serial.println("All tests completed, some failed :(");
+        Serial.println("All tests run, some failed :(");
     }
     while (true)
         ;
