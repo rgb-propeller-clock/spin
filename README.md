@@ -15,6 +15,8 @@ This repository powers an arduino project consisting of a spinning display of LE
 # Sample Operation
 After pressing the on button, the motor speed is set and the device spins up. Once the rotation speed threshold is reached, the LEDs begin to display an image representation of the current time.
 
+A quick summary of how an image is actually displayed is that each time the beam break sensor detects a rotation, if the clock is in the running state, then the beam break ISR starts or adjusts the rate of a timer interrupt, and the timer interrupt updates the LEDs for each column of the image as the clock spins around.
+
 ![Propellor_diagrams drawio (13)](https://user-images.githubusercontent.com/47846691/206894760-a541a390-96aa-418b-9b59-aca229215c41.png)
 
 # Finite State Machine (FSM)

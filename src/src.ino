@@ -1,5 +1,7 @@
 /**
- * This file contains Arduino's setup() and loop() functions and the state machine. More generalized
+ * This file contains Arduino's setup() and loop() functions and the state machine. More generalized functions involving registers and other things are kept in other files.
+ * @note A quick summary of how an image is actually displayed is that each time the beam break sensor detects a rotation, if the clock is in the running state, then
+ *      the beam break ISR starts or adjusts the rate of a timer interrupt, and the timer interrupt updates the LEDs for each column of the image as the clock spins around.
  */
 #include <Arduino.h>
 
